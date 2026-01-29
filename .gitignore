@@ -1,0 +1,26 @@
+# Environment
+venv/
+requirements.txt
+.env
+.env.*
+*.log
+
+# Build artifacts
+dist/
+node_modules/
+__pycache__/
+*.pyc
+target/
+*.egg-info/
+
+# Private components (keep out of public repo)
+dashboard/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

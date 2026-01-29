@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  nats:
+    image: nats:2.10-alpine
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    volumes:
+      - nats-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - facto-network
+
+  scylla:
+    image: scylladb/scylla:5.4
+    ports:
+      - "9042:9042"
+    command: --smp 2 --memory 2G --overprovisioned 1 --developer-mode 1
+    volumes:
+      - scylla-data:/var/lib/scylla
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "SELECT now() FROM system.local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - facto-network
+
+  scylla-init:
+    image: scylladb/scylla:5.4
+    depends_on:
+      scylla:
+        condition: service_healthy
+    volumes:
+      - ./infrastructure/scylla/schema.cql:/schema.cql:ro
+    entrypoint: ["cqlsh", "scylla", "-f", "/schema.cql"]
+    restart: "no"
+    networks:
+      - facto-network
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - facto-network
+
+  # Optional: Redis for caching (future use)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - facto-network
+
+volumes:
+  nats-data:
+  scylla-data:
+  prometheus-data:
+  redis-data:
+
+networks:
+  facto-network:
+    driver: bridge
