@@ -200,8 +200,12 @@ def verify_merkle_proofs(
             continue
         
         proof_data = proof_lookup[facto_id]
-        proof_elements = proof_data.get("proof", [])
+        proof_elements = proof_data.get("proof") or []  # Handle None
         root = proof_data.get("root", "")
+        
+        if not root:
+            errors.append(f"No Merkle root for event {facto_id}")
+            continue
         
         if verify_merkle_proof(event_hash, proof_elements, root):
             valid += 1
