@@ -84,6 +84,7 @@ func main() {
 		v1.GET("/events/:facto_id", handlers.GetEventByFactoID)
 		v1.GET("/sessions/:session_id/events", handlers.GetSessionEvents)
 		v1.POST("/verify", handlers.VerifyEvent)
+		v1.GET("/verify/chain", handlers.VerifyChain)
 		v1.GET("/evidence-package", handlers.GetEvidencePackage)
 	}
 

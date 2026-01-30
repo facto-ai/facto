@@ -46,6 +46,9 @@ Homepage = "https://github.com/facto-ai/facto"
 Documentation = "https://docs.facto.ai"
 Repository = "https://github.com/facto-ai/facto"
 
+[project.scripts]
+facto = "facto_sdk.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

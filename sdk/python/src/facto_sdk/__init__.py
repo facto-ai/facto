@@ -35,6 +35,7 @@ Example usage:
 
 from .client import AsyncFactoClient, FactoClient
 from .crypto import CryptoProvider, generate_keypair, verify_event
+from .cli import verify_evidence_bundle
 from .models import (
     ExecutionMeta,
     Proof,
@@ -61,6 +62,8 @@ __all__ = [
     "CryptoProvider",
     "generate_keypair",
     "verify_event",
+    # CLI / Verification
+    "verify_evidence_bundle",
     # Utilities
     "generate_facto_id",
     "current_time_ns",

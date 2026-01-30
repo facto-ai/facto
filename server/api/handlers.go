@@ -260,6 +260,119 @@ func (h *Handlers) VerifyEvent(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// ChainVerifyQuery represents query parameters for chain verification
+type ChainVerifyQuery struct {
+	SessionID string `form:"session_id" binding:"required"`
+}
+
+// ChainVerifyResponse represents the chain verification result
+type ChainVerifyResponse struct {
+	Valid       bool              `json:"valid"`
+	EventCount  int               `json:"event_count"`
+	Checks      ChainVerifyChecks `json:"checks"`
+	FirstEvent  string            `json:"first_event,omitempty"`
+	LastEvent   string            `json:"last_event,omitempty"`
+	SessionHash string            `json:"session_hash,omitempty"`
+	Errors      []string          `json:"errors,omitempty"`
+}
+
+// ChainVerifyChecks represents individual chain verification checks
+type ChainVerifyChecks struct {
+	AllHashesValid      bool `json:"all_hashes_valid"`
+	AllSignaturesValid  bool `json:"all_signatures_valid"`
+	ChainIntegrityValid bool `json:"chain_integrity_valid"`
+}
+
+// VerifyChain handles GET /v1/verify/chain
+func (h *Handlers) VerifyChain(c *gin.Context) {
+	start := time.Now()
+	defer func() {
+		apiRequestDuration.WithLabelValues("verify_chain").Observe(time.Since(start).Seconds())
+	}()
+
+	var query ChainVerifyQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		apiRequestsTotal.WithLabelValues("verify_chain", "400").Inc()
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get all events for the session
+	events, _, err := h.storage.GetSessionEvents(c.Request.Context(), query.SessionID, 10000, "")
+	if err != nil {
+		apiRequestsTotal.WithLabelValues("verify_chain", "500").Inc()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch events"})
+		return
+	}
+
+	if len(events) == 0 {
+		apiRequestsTotal.WithLabelValues("verify_chain", "404").Inc()
+		c.JSON(http.StatusNotFound, gin.H{"error": "no events found for session"})
+		return
+	}
+
+	// Sort events by completed_at (oldest first for chain verification)
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].CompletedAt < events[j].CompletedAt
+	})
+
+	response := ChainVerifyResponse{
+		EventCount: len(events),
+		FirstEvent: events[0].FactoID,
+		LastEvent:  events[len(events)-1].FactoID,
+		Checks: ChainVerifyChecks{
+			AllHashesValid:      true,
+			AllSignaturesValid:  true,
+			ChainIntegrityValid: true,
+		},
+		Errors: []string{},
+	}
+
+	// Verify all hashes
+	for _, event := range events {
+		if !verifyHash(&event) {
+			response.Checks.AllHashesValid = false
+			response.Errors = append(response.Errors, "Hash invalid for event: "+event.FactoID)
+		}
+	}
+
+	// Verify all signatures
+	for _, event := range events {
+		if !verifySignature(&event) {
+			response.Checks.AllSignaturesValid = false
+			response.Errors = append(response.Errors, "Signature invalid for event: "+event.FactoID)
+		}
+	}
+
+	// Verify chain integrity (prev_hash links)
+	expectedPrevHash := "0000000000000000000000000000000000000000000000000000000000000000"
+	for _, event := range events {
+		if event.Proof.PrevHash != expectedPrevHash {
+			response.Checks.ChainIntegrityValid = false
+			response.Errors = append(response.Errors,
+				"Chain broken at event: "+event.FactoID+
+					" (expected prev_hash: "+expectedPrevHash[:16]+"..., got: "+event.Proof.PrevHash[:16]+"...)")
+		}
+		expectedPrevHash = event.Proof.EventHash
+	}
+
+	// Compute session hash (hash of all event hashes concatenated)
+	var hashConcat string
+	for _, event := range events {
+		hashConcat += event.Proof.EventHash
+	}
+	sessionHashBytes := sha256.Sum256([]byte(hashConcat))
+	response.SessionHash = hex.EncodeToString(sessionHashBytes[:])
+
+	// Overall validity
+	response.Valid = response.Checks.AllHashesValid &&
+		response.Checks.AllSignaturesValid &&
+		response.Checks.ChainIntegrityValid
+
+	apiRequestsTotal.WithLabelValues("verify_chain", "200").Inc()
+	c.JSON(http.StatusOK, response)
+}
+
 // EvidencePackageQuery represents query parameters for evidence package
 type EvidencePackageQuery struct {
 	SessionID string `form:"session_id" binding:"required"`
