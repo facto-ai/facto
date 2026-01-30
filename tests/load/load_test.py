@@ -186,6 +186,8 @@ class LoadTester:
         self.stats = LoadTestStats()
         self.agents: List[SimulatedAgent] = []
         self._stop_event = asyncio.Event()
+        self._semaphore = asyncio.Semaphore(config.connection_pool_size)
+        self._submission_tasks: set = set()
 
     async def run(self) -> LoadTestStats:
         """Run the load test."""
@@ -233,8 +235,13 @@ class LoadTester:
             await asyncio.sleep(self.config.duration_seconds)
             self._stop_event.set()
 
-            # Wait for all tasks to complete
+            # Wait for all agent tasks to complete
             await asyncio.gather(*tasks, return_exceptions=True)
+
+            # Wait for all pending submissions to complete
+            if self._submission_tasks:
+                print(f"Waiting for {len(self._submission_tasks)} pending submissions...")
+                await asyncio.gather(*self._submission_tasks, return_exceptions=True)
 
             self.stats.end_time = time.time()
 
@@ -247,53 +254,58 @@ class LoadTester:
         target_eps: float,
     ):
         """Run event generation loop for an agent."""
-        interval = 1.0 / target_eps if target_eps > 0 else 1.0
-        batch: List[Dict[str, Any]] = []
+        # Calculate delay between batches instead of events
+        eps_per_agent = target_eps
+        batches_per_second = eps_per_agent / self.config.batch_size
+        batch_interval = 1.0 / batches_per_second if batches_per_second > 0 else 0
 
         while not self._stop_event.is_set():
-            # Generate events for batch
-            batch.append(agent.generate_event())
+            loop_start = time.time()
+            
+            # Generate a full batch
+            batch = [agent.generate_event() for _ in range(self.config.batch_size)]
+            
+            # Submit batch concurrently
+            task = asyncio.create_task(self._send_batch(client, batch))
+            self._submission_tasks.add(task)
+            task.add_done_callback(self._submission_tasks.discard)
 
-            if len(batch) >= self.config.batch_size:
-                await self._send_batch(client, batch)
-                batch = []
-
-            # Rate limiting
-            await asyncio.sleep(interval)
-
-        # Send remaining events
-        if batch:
-            await self._send_batch(client, batch)
+            # Rate limiting: sleep for the remainder of the interval
+            elapsed = time.time() - loop_start
+            sleep_time = max(0, batch_interval - elapsed)
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
 
     async def _send_batch(
         self,
         client: httpx.AsyncClient,
         events: List[Dict[str, Any]],
     ):
-        """Send a batch of events."""
-        payload = {"events": events}
-        start = time.time()
+        """Send a batch of events with semaphore protection."""
+        async with self._semaphore:
+            payload = {"events": events}
+            start = time.time()
 
-        try:
-            response = await client.post("/v1/ingest/batch", json=payload)
-            latency = time.time() - start
+            try:
+                response = await client.post("/v1/ingest/batch", json=payload)
+                latency = time.time() - start
 
-            self.stats.total_requests += 1
-            self.stats.latencies.append(latency)
-            self.stats.total_events_sent += len(events)
+                self.stats.total_requests += 1
+                self.stats.latencies.append(latency)
+                self.stats.total_events_sent += len(events)
 
-            if response.status_code == 202:
-                data = response.json()
-                self.stats.total_events_accepted += data.get("accepted_count", 0)
-                self.stats.total_events_rejected += data.get("rejected_count", 0)
-            else:
+                if response.status_code == 202:
+                    data = response.json()
+                    self.stats.total_events_accepted += data.get("accepted_count", 0)
+                    self.stats.total_events_rejected += data.get("rejected_count", 0)
+                else:
+                    self.stats.failed_requests += 1
+                    self.stats.errors.append(f"HTTP {response.status_code}: {response.text}")
+
+            except Exception as e:
                 self.stats.failed_requests += 1
-                self.stats.errors.append(f"HTTP {response.status_code}")
-
-        except Exception as e:
-            self.stats.failed_requests += 1
-            self.stats.total_requests += 1
-            self.stats.errors.append(str(e))
+                self.stats.total_requests += 1
+                self.stats.errors.append(str(e))
 
     def print_results(self):
         """Print test results."""
