@@ -69,7 +69,8 @@ def main():
     print("-" * 30)
     
     prompt2 = "Explain quantum computing in one sentence."
-    with facto.facto("llm_call", input_data={"prompt": prompt2}) as ctx:
+    with facto.facto("llm_call", input_data={"prompt": prompt2}, 
+                     execution_meta=ExecutionMeta(model_id="gpt-4", temperature=0.5)) as ctx:
         if DEMO_MODE:
             response2 = f"[Demo response for: {prompt2}]"
         else:
@@ -77,10 +78,6 @@ def main():
             response2 = llm.invoke(prompt2).content
         
         ctx.output = {"response": response2}
-        ctx.meta = ExecutionMeta(
-            model_id="gpt-4",
-            temperature=0.5,
-        )
     
     print(f"Q: {prompt2}")
     print(f"A: {response2}")

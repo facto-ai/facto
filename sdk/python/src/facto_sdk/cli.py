@@ -20,6 +20,8 @@ from typing import Any, Dict, List, Tuple
 from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
 
+# Import canonical form builder from crypto module to ensure consistency
+from .crypto import CryptoProvider
 
 # ANSI color codes for terminal output
 GREEN = "\033[92m"
@@ -27,6 +29,9 @@ RED = "\033[91m"
 YELLOW = "\033[93m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
+
+# Shared crypto provider for canonical form building
+_crypto = CryptoProvider()
 
 
 def checkmark(success: bool) -> str:
@@ -38,36 +43,20 @@ def build_canonical_form(event: Dict[str, Any]) -> str:
     """
     Build the canonical JSON form for hashing/signing.
     
-    Must match the server's canonical form exactly.
+    Uses the shared CryptoProvider to ensure consistency between
+    SDK and CLI verification.
+    
+    Signed fields (immutable):
+        - facto_id, agent_id, session_id, action_type, status
+        - input_data, output_data
+        - started_at, completed_at
+        - parent_facto_id, prev_hash
+        - execution_meta: model_id, seed, sdk_version, temperature, tool_calls
+    
+    Mutable metadata (not signed):
+        - execution_meta: model_hash, max_tokens, sdk_language, tags
     """
-    canonical: Dict[str, Any] = {}
-    
-    canonical["action_type"] = event["action_type"]
-    canonical["agent_id"] = event["agent_id"]
-    canonical["completed_at"] = event["completed_at"]
-    
-    # Build execution_meta in sorted order
-    exec_meta: Dict[str, Any] = {}
-    em = event.get("execution_meta", {})
-    if em.get("model_id") is not None:
-        exec_meta["model_id"] = em["model_id"]
-    exec_meta["seed"] = em.get("seed")
-    exec_meta["sdk_version"] = em.get("sdk_version", "0.1.0")
-    if em.get("temperature") is not None:
-        exec_meta["temperature"] = em["temperature"]
-    exec_meta["tool_calls"] = em.get("tool_calls", [])
-    canonical["execution_meta"] = exec_meta
-    
-    canonical["input_data"] = event["input_data"]
-    canonical["output_data"] = event["output_data"]
-    canonical["parent_facto_id"] = event.get("parent_facto_id")
-    canonical["prev_hash"] = event["proof"]["prev_hash"]
-    canonical["session_id"] = event["session_id"]
-    canonical["started_at"] = event["started_at"]
-    canonical["status"] = event["status"]
-    canonical["facto_id"] = event["facto_id"]
-    
-    return json.dumps(canonical, sort_keys=True, separators=(",", ":"))
+    return _crypto.build_canonical_form(event)
 
 
 def compute_sha3_256(data: str) -> str:

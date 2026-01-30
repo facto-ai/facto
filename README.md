@@ -99,7 +99,7 @@ client.close()
 │                           YOUR AI AGENT                                 │
 │  ┌───────────────────────────────────────────────────────────────────┐  │
 │  │  Facto SDK (Python / TypeScript)                                  │  │
-│  │  • Generate facto_id (UUIDv7)                                     │  │
+│  │  • Generate facto_id (UUIDv4)                                     │  │
 │  │  • Compute SHA3-256 hash                                          │  │
 │  │  • Sign with Ed25519                                              │  │
 │  │  • Link to previous event (prev_hash)                             │  │
