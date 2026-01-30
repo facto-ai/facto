@@ -1,0 +1,35 @@
+#!/bin/bash
+#
+# Facto Pre-Push Hook
+# Runs all tests before allowing a push. Blocks if any fail.
+#
+
+echo "🔒 Running Facto pre-push tests..."
+
+# Get the repo root
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# Activate virtual environment if it exists
+if [ -d "venv" ]; then
+    source venv/bin/activate
+fi
+
+# Run tests (fast mode for pre-push - skip integration that requires services)
+python run_tests.py --fast
+
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -ne 0 ]; then
+    echo ""
+    echo "❌ Pre-push checks FAILED. Push blocked."
+    echo "   Fix the failing tests and try again."
+    echo ""
+    echo "   To run full tests: python run_tests.py"
+    echo "   To bypass (not recommended): git push --no-verify"
+    exit 1
+fi
+
+echo ""
+echo "✅ Pre-push checks passed. Proceeding with push..."
+exit 0

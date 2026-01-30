@@ -295,7 +295,7 @@ class TestAsyncClient:
             output_data={"result": "ok"},
         )
 
-        assert facto_id.startswith("tr-")
+        assert facto_id.startswith("ft-")
 
         await client.close()
 

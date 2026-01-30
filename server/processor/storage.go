@@ -10,6 +10,11 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// maxBatchSize is the maximum number of statements per ScyllaDB batch
+// ScyllaDB default batch size warning is at 128KB, we limit to 50 statements
+// to stay well under the limit with typical event sizes
+const maxBatchSize = 50
+
 // Storage handles ScyllaDB operations
 type Storage struct {
 	session *gocql.Session
@@ -142,88 +147,119 @@ func (s *Storage) StoreBatch(ctx context.Context, events []FactoEvent) error {
 
 // storeEventsBatch inserts into the main events table
 func (s *Storage) storeEventsBatch(ctx context.Context, events []eventData) error {
-	batch := s.session.NewBatch(gocql.UnloggedBatch).WithContext(ctx)
+	// Process in chunks to avoid "Batch too large" errors
+	for i := 0; i < len(events); i += maxBatchSize {
+		end := i + maxBatchSize
+		if end > len(events) {
+			end = len(events)
+		}
+		chunk := events[i:end]
 
-	for _, e := range events {
-		batch.Query(`
-			INSERT INTO events (
-				agent_id, date, facto_id, session_id, parent_facto_id,
-				action_type, status, input_data, output_data,
-				model_id, model_hash, temperature, seed, max_tokens, tool_calls,
-				sdk_version, sdk_language, tags,
-				signature, public_key, prev_hash, event_hash,
-				started_at, completed_at, received_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`,
-			e.event.AgentID, e.eventDate, e.event.FactoID, e.event.SessionID, e.parentFactoID,
-			e.event.ActionType, e.event.Status, e.inputData, e.outputData,
-			e.modelID, e.modelHash, e.temperature, e.seed, e.maxTokens, string(e.toolCalls),
-			e.sdkVersion, e.sdkLanguage, e.event.ExecutionMeta.Tags,
-			[]byte(e.event.Proof.Signature), []byte(e.event.Proof.PublicKey),
-			e.event.Proof.PrevHash, e.event.Proof.EventHash,
-			time.Unix(0, e.event.StartedAt), e.completedTime, time.Now(),
-		)
+		batch := s.session.NewBatch(gocql.UnloggedBatch).WithContext(ctx)
+		for _, e := range chunk {
+			batch.Query(`
+				INSERT INTO events (
+					agent_id, date, facto_id, session_id, parent_facto_id,
+					action_type, status, input_data, output_data,
+					model_id, model_hash, temperature, seed, max_tokens, tool_calls,
+					sdk_version, sdk_language, tags,
+					signature, public_key, prev_hash, event_hash,
+					started_at, completed_at, received_at
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`,
+				e.event.AgentID, e.eventDate, e.event.FactoID, e.event.SessionID, e.parentFactoID,
+				e.event.ActionType, e.event.Status, e.inputData, e.outputData,
+				e.modelID, e.modelHash, e.temperature, e.seed, e.maxTokens, string(e.toolCalls),
+				e.sdkVersion, e.sdkLanguage, e.event.ExecutionMeta.Tags,
+				[]byte(e.event.Proof.Signature), []byte(e.event.Proof.PublicKey),
+				e.event.Proof.PrevHash, e.event.Proof.EventHash,
+				time.Unix(0, e.event.StartedAt), e.completedTime, time.Now(),
+			)
+		}
+
+		if err := s.session.ExecuteBatch(batch); err != nil {
+			return err
+		}
 	}
-
-	return s.session.ExecuteBatch(batch)
+	return nil
 }
 
 // storeByFactoIDBatch inserts into the events_by_facto_id lookup table
 func (s *Storage) storeByFactoIDBatch(ctx context.Context, events []eventData) error {
-	batch := s.session.NewBatch(gocql.UnloggedBatch).WithContext(ctx)
+	for i := 0; i < len(events); i += maxBatchSize {
+		end := i + maxBatchSize
+		if end > len(events) {
+			end = len(events)
+		}
+		chunk := events[i:end]
 
-	for _, e := range events {
-		batch.Query(`
-			INSERT INTO events_by_facto_id (
-				facto_id, agent_id, date, completed_at, session_id,
-				action_type, status, input_data, output_data,
-				model_id, model_hash, temperature, seed, max_tokens, tool_calls,
-				sdk_version, sdk_language, tags,
-				signature, public_key, prev_hash, event_hash,
-				parent_facto_id, started_at, received_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`,
-			e.event.FactoID, e.event.AgentID, e.eventDate, e.completedTime, e.event.SessionID,
-			e.event.ActionType, e.event.Status, e.inputData, e.outputData,
-			e.modelID, e.modelHash, e.temperature, e.seed, e.maxTokens, string(e.toolCalls),
-			e.sdkVersion, e.sdkLanguage, e.event.ExecutionMeta.Tags,
-			[]byte(e.event.Proof.Signature), []byte(e.event.Proof.PublicKey),
-			e.event.Proof.PrevHash, e.event.Proof.EventHash,
-			e.parentFactoID, time.Unix(0, e.event.StartedAt), time.Now(),
-		)
+		batch := s.session.NewBatch(gocql.UnloggedBatch).WithContext(ctx)
+		for _, e := range chunk {
+			batch.Query(`
+				INSERT INTO events_by_facto_id (
+					facto_id, agent_id, date, completed_at, session_id,
+					action_type, status, input_data, output_data,
+					model_id, model_hash, temperature, seed, max_tokens, tool_calls,
+					sdk_version, sdk_language, tags,
+					signature, public_key, prev_hash, event_hash,
+					parent_facto_id, started_at, received_at
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`,
+				e.event.FactoID, e.event.AgentID, e.eventDate, e.completedTime, e.event.SessionID,
+				e.event.ActionType, e.event.Status, e.inputData, e.outputData,
+				e.modelID, e.modelHash, e.temperature, e.seed, e.maxTokens, string(e.toolCalls),
+				e.sdkVersion, e.sdkLanguage, e.event.ExecutionMeta.Tags,
+				[]byte(e.event.Proof.Signature), []byte(e.event.Proof.PublicKey),
+				e.event.Proof.PrevHash, e.event.Proof.EventHash,
+				e.parentFactoID, time.Unix(0, e.event.StartedAt), time.Now(),
+			)
+		}
+
+		if err := s.session.ExecuteBatch(batch); err != nil {
+			return err
+		}
 	}
-
-	return s.session.ExecuteBatch(batch)
+	return nil
 }
 
 // storeBySessionBatch inserts into the events_by_session lookup table
 func (s *Storage) storeBySessionBatch(ctx context.Context, events []eventData) error {
-	batch := s.session.NewBatch(gocql.UnloggedBatch).WithContext(ctx)
+	for i := 0; i < len(events); i += maxBatchSize {
+		end := i + maxBatchSize
+		if end > len(events) {
+			end = len(events)
+		}
+		chunk := events[i:end]
 
-	for _, e := range events {
-		batch.Query(`
-			INSERT INTO events_by_session (
-				session_id, completed_at, facto_id, agent_id,
-				action_type, status, event_hash,
-				input_data, output_data,
-				model_id, temperature,
-				sdk_version, sdk_language, tags,
-				signature, public_key, prev_hash,
-				parent_facto_id, started_at, received_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`,
-			e.event.SessionID, e.completedTime, e.event.FactoID, e.event.AgentID,
-			e.event.ActionType, e.event.Status, e.event.Proof.EventHash,
-			e.inputData, e.outputData,
-			e.modelID, e.temperature,
-			e.sdkVersion, e.sdkLanguage, e.event.ExecutionMeta.Tags,
-			[]byte(e.event.Proof.Signature), []byte(e.event.Proof.PublicKey),
-			e.event.Proof.PrevHash,
-			e.parentFactoID, time.Unix(0, e.event.StartedAt), time.Now(),
-		)
+		batch := s.session.NewBatch(gocql.UnloggedBatch).WithContext(ctx)
+		for _, e := range chunk {
+			batch.Query(`
+				INSERT INTO events_by_session (
+					session_id, completed_at, facto_id, agent_id,
+					action_type, status, event_hash,
+					input_data, output_data,
+					model_id, temperature,
+					sdk_version, sdk_language, tags,
+					signature, public_key, prev_hash,
+					parent_facto_id, started_at, received_at
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`,
+				e.event.SessionID, e.completedTime, e.event.FactoID, e.event.AgentID,
+				e.event.ActionType, e.event.Status, e.event.Proof.EventHash,
+				e.inputData, e.outputData,
+				e.modelID, e.temperature,
+				e.sdkVersion, e.sdkLanguage, e.event.ExecutionMeta.Tags,
+				[]byte(e.event.Proof.Signature), []byte(e.event.Proof.PublicKey),
+				e.event.Proof.PrevHash,
+				e.parentFactoID, time.Unix(0, e.event.StartedAt), time.Now(),
+			)
+		}
+
+		if err := s.session.ExecuteBatch(batch); err != nil {
+			return err
+		}
 	}
-
-	return s.session.ExecuteBatch(batch)
+	return nil
 }
 
 // StoreMerkleRoot stores a Merkle root entry

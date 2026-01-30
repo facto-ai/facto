@@ -14,10 +14,16 @@ Usage:
 """
 
 import os
+import dotenv
 import sys
 
+dotenv.load_dotenv()
+
+# read from dotenv
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
 # Check for API key
-if not os.getenv("OPENAI_API_KEY"):
+if not OPENAI_API_KEY:
     print("⚠️  OPENAI_API_KEY not set. Running in demo mode with mock responses.")
     DEMO_MODE = True
 else:

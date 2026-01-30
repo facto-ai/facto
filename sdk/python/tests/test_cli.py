@@ -184,11 +184,20 @@ class TestEvidenceBundle:
     def test_valid_bundle(self):
         """Valid bundle should pass verification."""
         event = make_test_event()
+        event_hash = event["proof"]["event_hash"]
+        
+        # For a single-element tree, the event hash is the root
+        merkle_proof = {
+            "facto_id": event["facto_id"],
+            "root": event_hash,
+            "proof": [],  # No siblings for single element
+        }
+        
         bundle = {
             "package_id": "ev-test",
             "session_id": "test-session",
             "events": [event],
-            "merkle_proofs": [],
+            "merkle_proofs": [merkle_proof],
             "exported_at": "2024-01-01T00:00:00Z",
         }
         

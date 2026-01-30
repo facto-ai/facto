@@ -198,6 +198,10 @@ def verify_merkle_proofs(
     valid = 0
     errors = []
     
+    # Check for consistency between events and proofs
+    if len(merkle_proofs) != len(events):
+        errors.append(f"Mismatch: {len(events)} events but {len(merkle_proofs)} Merkle proofs")
+    
     for event in events:
         facto_id = event["facto_id"]
         event_hash = event["proof"]["event_hash"]
@@ -276,21 +280,23 @@ def verify_evidence_bundle(filepath: str) -> Tuple[bool, Dict[str, Any]]:
     results["chain"]["valid"] = chain_valid
     results["chain"]["errors"] = chain_errors
     
-    # 4. Verify Merkle proofs (if present)
+    # 4. Verify Merkle proofs (mandatory for high assurance)
     if merkle_proofs:
         valid, total, merkle_errors = verify_merkle_proofs(events, merkle_proofs)
         results["merkle"]["valid"] = valid
         results["merkle"]["total"] = total
         results["merkle"]["errors"] = merkle_errors
+        merkle_ok = (valid == total) and (len(merkle_errors) == 0)
     else:
         results["merkle"]["valid"] = 0
         results["merkle"]["total"] = 0
+        results["merkle"]["errors"].append("Merkle proofs missing (required for integrity)")
+        merkle_ok = False
     
     # Overall validity
     all_hashes_valid = results["hashes"]["invalid"] == 0
     all_sigs_valid = results["signatures"]["invalid"] == 0
     chain_ok = results["chain"]["valid"]
-    merkle_ok = results["merkle"]["valid"] == results["merkle"]["total"] if merkle_proofs else True
     
     overall_valid = all_hashes_valid and all_sigs_valid and chain_ok and merkle_ok
     
