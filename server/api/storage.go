@@ -64,7 +64,7 @@ func (s *Storage) GetEvents(ctx context.Context, agentID string, start, end time
 			actionType, status                string
 			inputData, outputData             []byte
 			modelID, modelHash                string
-			temperature                       float64
+			temperature                       float32
 			seed                              int64
 			maxTokens                         int32
 			toolCalls                         string
@@ -140,7 +140,7 @@ func (s *Storage) GetEventByFactoID(ctx context.Context, factoID string) (*Event
 		actionType, status                string
 		inputData, outputData             []byte
 		modelID, modelHash                string
-		temperature                       float64
+		temperature                       float32
 		seed                              int64
 		maxTokens                         int32
 		toolCalls                         string
@@ -202,7 +202,7 @@ func (s *Storage) GetSessionEvents(ctx context.Context, sessionID string, limit 
 		eventHash                       string
 		inputData, outputData           []byte
 		modelID                         string
-		temperature                     float64
+		temperature                     float32
 		sdkVersion, sdkLanguage         string
 		tags                            map[string]string
 		signature, publicKey            []byte
@@ -278,7 +278,7 @@ func buildEventResponse(
 	actionType, status string,
 	inputData, outputData []byte,
 	modelID, modelHash string,
-	temperature float64,
+	temperature float32,
 	seed int64,
 	maxTokens int32,
 	toolCalls string,
@@ -310,7 +310,8 @@ func buildEventResponse(
 
 	var tempPtr *float64
 	if temperature != 0 {
-		tempPtr = &temperature
+		t := float64(temperature)
+		tempPtr = &t
 	}
 
 	var seedPtr *int64

@@ -53,7 +53,7 @@ type eventData struct {
 	modelHash     string
 	sdkVersion    string
 	sdkLanguage   string
-	temperature   float64
+	temperature   float32
 	seed          int64
 	maxTokens     int32
 	parentFactoID string
@@ -74,7 +74,7 @@ func (s *Storage) StoreBatch(ctx context.Context, events []FactoEvent) error {
 		eventDate := completedTime.UTC().Truncate(24 * time.Hour)
 
 		var modelID, modelHash, sdkVersion, sdkLanguage string
-		var temperature float64
+		var temperature float32
 		var seed int64
 		var maxTokens int32
 
@@ -85,7 +85,7 @@ func (s *Storage) StoreBatch(ctx context.Context, events []FactoEvent) error {
 			modelHash = *event.ExecutionMeta.ModelHash
 		}
 		if event.ExecutionMeta.Temperature != nil {
-			temperature = *event.ExecutionMeta.Temperature
+			temperature = float32(*event.ExecutionMeta.Temperature)
 		}
 		if event.ExecutionMeta.Seed != nil {
 			seed = *event.ExecutionMeta.Seed
