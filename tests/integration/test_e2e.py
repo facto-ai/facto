@@ -21,7 +21,7 @@ import pytest
 # Import facto SDK
 import sys
 sys.path.insert(0, '../../sdk/python/src')
-from facto_sdk import FactoClient, FactoConfig, AsyncFactoClient, verify_event
+from facto import FactoClient, FactoConfig, AsyncFactoClient, verify_event
 
 
 INGESTION_URL = "http://localhost:8080"

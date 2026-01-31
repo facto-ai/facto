@@ -2,7 +2,7 @@
 
 import pytest
 
-from facto_sdk import (
+from facto import (
     AsyncFactoClient,
     CryptoProvider,
     ExecutionMeta,

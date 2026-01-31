@@ -21,8 +21,8 @@ import pytest
 
 import sys
 sys.path.insert(0, '../../sdk/python/src')
-from facto_sdk import FactoClient, FactoConfig, ExecutionMeta
-from facto_sdk.cli import verify_evidence_bundle
+from facto import FactoClient, FactoConfig, ExecutionMeta
+from facto.cli import verify_evidence_bundle
 
 
 INGESTION_URL = "http://localhost:8080"

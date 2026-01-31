@@ -30,7 +30,7 @@ else:
     DEMO_MODE = False
     from langchain_openai import ChatOpenAI
 
-from facto_sdk import FactoClient, FactoConfig, ExecutionMeta
+from facto import FactoClient, FactoConfig, ExecutionMeta
 
 
 def main():

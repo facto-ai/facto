@@ -1,7 +1,7 @@
 import os
 import asyncio
 from dotenv import load_dotenv
-from facto_sdk import FactoClient, FactoConfig, ExecutionMeta
+from facto import FactoClient, FactoConfig, ExecutionMeta
 
 # Load environment variables
 load_dotenv()

@@ -25,7 +25,7 @@ from typing import Dict, Any, Tuple
 from nacl.signing import SigningKey
 
 # Import Facto verification functions
-from facto_sdk.cli import (
+from facto.cli import (
     build_canonical_form,
     compute_sha3_256,
     verify_event_hash,

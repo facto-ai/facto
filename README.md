@@ -66,13 +66,13 @@ cd server/api && go build -o api . && ./api
 ### 3. Install SDK
 
 ```bash
-pip install facto-sdk
+pip install facto-ai
 ```
 
 ### 4. Record Your First Event
 
 ```python
-from facto_sdk import FactoClient, FactoConfig
+from facto import FactoClient, FactoConfig
 
 client = FactoClient(FactoConfig(
     endpoint="http://localhost:8080",
@@ -141,7 +141,7 @@ client.close()
 ### Python
 
 ```python
-from facto_sdk import FactoClient, FactoConfig, ExecutionMeta
+from facto import FactoClient, FactoConfig, ExecutionMeta
 
 client = FactoClient(FactoConfig(
     endpoint="http://localhost:8080",

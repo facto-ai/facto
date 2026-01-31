@@ -15,7 +15,7 @@ pip install facto-sdk langchain langchain-openai
 ```python
 import os
 from langchain_openai import ChatOpenAI
-from facto_sdk import FactoClient, FactoConfig
+from facto import FactoClient, FactoConfig
 
 # Initialize Facto
 facto = FactoClient(FactoConfig(
@@ -43,7 +43,7 @@ facto.close()
 
 ```python
 from langchain_openai import ChatOpenAI
-from facto_sdk import FactoClient, FactoConfig, ExecutionMeta
+from facto import FactoClient, FactoConfig, ExecutionMeta
 
 facto = FactoClient(FactoConfig(
     endpoint="http://localhost:8080",
@@ -68,7 +68,7 @@ facto.close()
 ```python
 import time
 from langchain_openai import ChatOpenAI
-from facto_sdk import FactoClient, FactoConfig
+from facto import FactoClient, FactoConfig
 
 facto = FactoClient(FactoConfig(
     endpoint="http://localhost:8080",

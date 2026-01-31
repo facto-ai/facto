@@ -5,7 +5,7 @@ This SDK provides tools for capturing and signing facto events from AI agents,
 creating tamper-proof audit trails for compliance and debugging.
 
 Example usage:
-    from facto_sdk import FactoClient, FactoConfig
+    from facto import FactoClient, FactoConfig
 
     client = FactoClient(FactoConfig(
         endpoint="http://localhost:8080",
@@ -46,7 +46,7 @@ from .models import (
     generate_facto_id,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __all__ = [
     # Clients
     "FactoClient",

@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "facto-sdk"
-version = "0.1.0"
+name = "facto-ai"
+version = "0.1.1"
 description = "Python SDK for Facto - Forensic Accountability Infrastructure for AI Agents"
 readme = "README.md"
 license = {text = "MIT"}
@@ -39,6 +39,8 @@ dev = [
     "black>=23.0.0",
     "mypy>=1.0.0",
     "ruff>=0.1.0",
+    "build>=1.0.0",
+    "twine>=4.0.0",
 ]
 
 [project.urls]
@@ -47,7 +49,7 @@ Documentation = "https://docs.facto.ai"
 Repository = "https://github.com/facto-ai/facto"
 
 [project.scripts]
-facto = "facto_sdk.cli:main"
+facto = "facto.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from facto_sdk.cli import (
+from facto.cli import (
     build_canonical_form,
     compute_sha3_256,
     hash_pair,
@@ -32,7 +32,7 @@ def make_test_event(
     public_key: str = None,
 ) -> dict:
     """Create a test event dict."""
-    from facto_sdk import CryptoProvider
+    from facto import CryptoProvider
     
     crypto = CryptoProvider()
     

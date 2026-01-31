@@ -3,7 +3,7 @@ import os
 import time
 import httpx
 from datetime import datetime, timezone, timedelta
-from facto_sdk import FactoClient, FactoConfig
+from facto import FactoClient, FactoConfig
 
 # Configuration
 INGEST_URL = "http://127.0.0.1:8080"
